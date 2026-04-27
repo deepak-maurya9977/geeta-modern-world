@@ -7,7 +7,7 @@ export type Lang = 'en' | 'hi';
 type TranslationMap = typeof en;
 type TranslationKey = keyof TranslationMap;
 
-const translations: Record<Lang, TranslationMap> = { en, hi };
+const translations: Record<Lang, Record<TranslationKey, string>> = { en, hi };
 
 interface LanguageContextValue {
   lang: Lang;
