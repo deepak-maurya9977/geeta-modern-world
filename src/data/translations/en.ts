@@ -1,6 +1,6 @@
 export const en = {
   // Nav
-  'nav.title': 'Geeta In Modern World',
+  'nav.title': 'Divya Darshan',
   'nav.chapters': 'Chapters',
   'nav.about': 'About',
   'nav.contact': 'Contact',
@@ -68,7 +68,7 @@ export const en = {
   'contact.send': 'Send Message',
 
   // Footer
-  'footer.copyright': '© Geeta In Modern World. Built for contemplation, not conversion.',
+  'footer.copyright': '© Divya Darshan. Built for contemplation, not conversion.',
   'footer.disclaimer': 'This is a creative interpretation of the Bhagavad Gita for educational and inspirational purposes. For scholarly study, please consult traditional commentaries and qualified teachers.',
 
   // Back to top

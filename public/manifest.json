@@ -1,0 +1,13 @@
+{
+  "name": "Divya Darshan",
+  "short_name": "Divya Darshan",
+  "description": "Explore the eternal wisdom of the Bhagavad Gita through a modern lens.",
+  "icons": [
+    { "src": "/geeta-modern-world/DivyaDarshan.jpeg", "sizes": "192x192", "type": "image/jpeg" },
+    { "src": "/geeta-modern-world/DivyaDarshan.jpeg", "sizes": "512x512", "type": "image/jpeg" }
+  ],
+  "theme_color": "#0D1B2A",
+  "background_color": "#0D1B2A",
+  "display": "standalone",
+  "start_url": "/geeta-modern-world/"
+}

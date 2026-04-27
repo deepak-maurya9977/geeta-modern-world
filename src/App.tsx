@@ -285,7 +285,7 @@ function App() {
   }
 
   return (
-    <div ref={mainRef} className="relative saffron-bg min-h-screen">
+    <div ref={mainRef} className="relative min-h-screen" style={{ background: '#0D1B2A' }}>
       {/* Skip to content link */}
       <a href="#chapters" className="sr-only sr-only-focusable">
         {t('hero.skipToChapters')}
@@ -295,34 +295,50 @@ function App() {
       <div className="grain-overlay" />
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 lg:px-10 py-4 flex justify-between items-center nav-saffron">
+      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 lg:px-10 py-3 flex justify-between items-center" style={{ background: '#0D1B2A', borderBottom: '1px solid rgba(212,168,90,0.15)' }}>
         <div
-          className="text-sm font-medium tracking-wide text-[#2C1810] cursor-pointer hover:text-[#D6A23A] transition-colors"
+          className="flex items-center gap-3 cursor-pointer"
           onClick={() => setCurrentScreen('home')}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter') setCurrentScreen('home'); }}
-          aria-label="Back to home"
+          aria-label="Back to Divya Darshan home"
         >
-          {t('nav.title')}
+          <img
+            src="/geeta-modern-world/DivyaDarshan.jpeg"
+            alt="Divya Darshan logo"
+            className="w-8 h-8 rounded-full object-cover"
+            style={{ border: '1px solid rgba(212,168,90,0.4)' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold tracking-wide" style={{ color: '#D4A85A', fontFamily: 'Playfair Display, serif' }}>
+              {lang === 'hi' ? 'दिव्य दर्शन' : 'Divya Darshan'}
+            </span>
+            <span className="text-[9px] tracking-widest uppercase hidden md:block" style={{ color: 'rgba(232,224,208,0.5)' }}>
+              Divine Vision
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-4 md:gap-8">
           {currentScrollChapter > 0 && (
-            <span className="text-xs text-[#D6A23A] font-medium hidden md:inline">
+            <span className="text-xs font-medium hidden md:inline" style={{ color: '#D4A85A' }}>
               {lang === 'hi'
                 ? `अध्याय ${currentScrollChapter} ${t('nav.chapterOf')} ${activeChapters.length}`
                 : `Chapter ${currentScrollChapter} ${t('nav.chapterOf')} ${activeChapters.length}`}
             </span>
           )}
-          <button onClick={openChaptersGrid} className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">
+          <button onClick={openChaptersGrid} className="text-sm hidden md:inline transition-colors" style={{ color: 'rgba(232,224,208,0.6)' }} onMouseEnter={e => (e.currentTarget.style.color = '#D4A85A')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(232,224,208,0.6)')}>
             {t('nav.chapters')}
           </button>
-          <a href="#about" className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">{t('nav.about')}</a>
-          <a href="#contact" className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">{t('nav.contact')}</a>
-          {/* Language toggle */}
+          <a href="#about" className="text-sm hidden md:inline transition-colors" style={{ color: 'rgba(232,224,208,0.6)' }} onMouseEnter={e => (e.currentTarget.style.color = '#D4A85A')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(232,224,208,0.6)')}>{t('nav.about')}</a>
+          <a href="#contact" className="text-sm hidden md:inline transition-colors" style={{ color: 'rgba(232,224,208,0.6)' }} onMouseEnter={e => (e.currentTarget.style.color = '#D4A85A')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(232,224,208,0.6)')}>{t('nav.contact')}</a>
           <button
             onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-[#D6A23A]/30 text-[#D6A23A] hover:bg-[#D6A23A] hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+            style={{ border: '1px solid rgba(212,168,90,0.35)', color: '#D4A85A' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#D4A85A'; (e.currentTarget as HTMLButtonElement).style.color = '#0D1B2A'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#D4A85A'; }}
             aria-label={`Switch to ${lang === 'en' ? 'Hindi' : 'English'}`}
           >
             <Globe className="w-3.5 h-3.5" />

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.deepakmaurya.geetamodern',
-  appName: 'Geeta In Modern World',
+  appName: 'Divya Darshan',
   webDir: 'dist',
   server: {
     androidScheme: 'https',
