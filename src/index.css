@@ -47,101 +47,144 @@ html.lenis, html.lenis body {
   * {
     @apply border-border;
   }
-  
+
   html {
     scroll-behavior: auto;
   }
-  
+
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply antialiased;
     font-family: 'Inter', sans-serif;
-    background-color: #F4EFE6;
-    color: #14181F;
+    background-color: #FDF6EC;
+    color: #2C1810;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', serif;
     font-weight: 600;
     letter-spacing: -0.02em;
-    line-height: 0.95;
+    line-height: 1.1;
   }
 }
 
 @layer components {
+  /* Saffron background — warm gradient with subtle pattern */
+  .saffron-bg {
+    background: linear-gradient(
+      180deg,
+      #FDF6EC 0%,
+      #FAF0DE 15%,
+      #F5E6C8 40%,
+      #F0DDB5 60%,
+      #EDD5A3 80%,
+      #F5E6C8 100%
+    );
+    background-attachment: fixed;
+  }
+
+  /* Navigation with saffron tint */
+  .nav-saffron {
+    background: linear-gradient(to bottom, rgba(253, 246, 236, 0.97) 0%, rgba(253, 246, 236, 0.85) 70%, transparent 100%);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Decorative mandala circle */
+  .saffron-mandala {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #D6A23A 0%, #D6A23A 30%, transparent 31%, transparent 45%, #D6A23A 46%, #D6A23A 48%, transparent 49%);
+    opacity: 0.5;
+  }
+
+  /* Decorative divider between hero and chapters */
+  .saffron-divider {
+    height: 1px;
+    max-width: 120px;
+    margin: 0 auto;
+    background: linear-gradient(to right, transparent, #D6A23A, transparent);
+    opacity: 0.4;
+  }
+
+  /* Chapter card — flowing layout, no full-screen pinning */
+  .chapter-card-flow {
+    padding: 20px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(214, 162, 58, 0.15);
+    position: relative;
+  }
+
+  .chapter-card-flow:last-child {
+    border-bottom: none;
+  }
+
+  /* Subtle left accent on hover */
+  .chapter-card-flow::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 20px;
+    bottom: 20px;
+    width: 3px;
+    border-radius: 2px;
+    background: #D6A23A;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .chapter-card-flow:hover::before {
+    opacity: 1;
+  }
+
+  /* Phase dividers between chapter groups */
+  .phase-divider {
+    padding: 24px 0 12px;
+    margin-top: 16px;
+    border-top: 1px solid rgba(214, 162, 58, 0.2);
+  }
+
+  .phase-divider:first-child {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .phase-label {
+    @apply text-xs font-medium uppercase tracking-[0.15em];
+    color: #D6A23A;
+  }
+
   .grain-overlay {
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 9999;
-    opacity: 0.06;
+    opacity: 0.04;
     mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   }
-  
-  .vignette-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0,0,0,0.35) 100%);
-  }
-  
-  .chapter-card {
-    background: rgba(244, 239, 230, 0.94);
-    border: 1px solid rgba(20, 24, 31, 0.08);
-    border-radius: 22px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.14);
-  }
-  
-  .btn-primary {
+
+  .btn-saffron {
     @apply px-8 py-3 rounded-full font-medium transition-all duration-300;
-    background-color: #0B0F17;
-    color: #F4EFE6;
-  }
-  
-  .btn-primary:hover {
     background-color: #D6A23A;
-    color: #0B0F17;
+    color: #2C1810;
   }
-  
-  .text-link {
-    @apply inline-flex items-center gap-2 font-medium transition-all duration-300;
-    color: #0B0F17;
+
+  .btn-saffron:hover {
+    background-color: #B8861B;
+    color: white;
+    box-shadow: 0 4px 16px rgba(214, 162, 58, 0.3);
   }
-  
-  .text-link:hover {
-    color: #D6A23A;
-  }
-  
+
   .eyebrow {
     @apply text-xs font-medium uppercase tracking-[0.18em];
-    color: #6B6F78;
+    color: #8B7355;
   }
-  
+
   .chapter-badge {
-    @apply inline-block px-4 py-1.5 rounded-full text-xs font-medium uppercase tracking-wider;
-    background-color: rgba(214, 162, 58, 0.15);
-    color: #0B0F17;
-  }
-  
-  .divider-line {
-    width: 1px;
-    background: linear-gradient(to bottom, transparent, rgba(214, 162, 58, 0.4), transparent);
-  }
-  
-  .pinned-section {
-    @apply relative w-full h-screen overflow-hidden;
-    will-change: transform;
-  }
-
-  .bg-image {
-    @apply absolute inset-0 w-full h-full object-cover;
-  }
-
-  .chapter-card,
-  .bg-wrapper {
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    @apply inline-block px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider;
+    background-color: rgba(214, 162, 58, 0.12);
+    color: #8B7355;
   }
 }
 
@@ -175,7 +218,7 @@ html.lenis, html.lenis body {
     clip: auto;
     white-space: normal;
     background: #D6A23A;
-    color: #0B0F17;
+    color: #2C1810;
     font-weight: 600;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);

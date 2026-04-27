@@ -5,7 +5,7 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/geeta-modern-world/',
+  base: process.env.CAPACITOR_BUILD ? '/' : '/geeta-modern-world/',
   plugins: [inspectAttr(), react()],
   resolve: {
     alias: {

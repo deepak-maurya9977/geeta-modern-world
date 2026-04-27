@@ -2,34 +2,30 @@ import { useEffect, useRef, useLayoutEffect, useState, useCallback } from 'react
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import { ArrowRight, ArrowUp, BookOpen, ChevronDown, Heart, MessageCircle } from 'lucide-react';
+import { ArrowRight, ArrowUp, BookOpen, ChevronDown, Heart, MessageCircle, Globe } from 'lucide-react';
 import { chapters } from './data/chapters';
+import { chaptersHi } from './data/chapters-hi';
 import EbookReader from './components/EbookReader';
 import ChaptersGrid from './components/ChaptersGrid';
+import LanguageSelector from './components/LanguageSelector';
+import HomeScreen from './components/HomeScreen';
+import { useLanguage } from './lib/language';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const CHAPTERS_PER_BATCH = 5;
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Phase config
-const PHASES = [
-  { name: 'Foundation', range: [1, 6], description: 'Chapters 1–6: The philosophical foundation — understanding duty, the self, and selfless action.' },
-  { name: 'Devotion', range: [7, 12], description: 'Chapters 7–12: The path of devotion — divine knowledge, meditation, and surrender.' },
-  { name: 'Integration', range: [13, 18], description: 'Chapters 13–18: Integration and liberation — wisdom, discernment, and freedom.' },
-] as const;
-
-function getPhaseForChapter(id: number) {
-  return PHASES.find(p => id >= p.range[0] && id <= p.range[1]);
-}
-
-// Chapter Card Component
+// Chapter Card Component — flowing layout, no bg images
 const ChapterCard = ({
   badge,
   title,
   story,
   phase,
   readingTime,
+  readingTimeLabel,
+  readStoryLabel,
+  readStoryOfLabel,
   onReadClick,
   onTitleClick,
 }: {
@@ -38,20 +34,26 @@ const ChapterCard = ({
   story: string;
   phase?: string;
   readingTime?: number;
+  readingTimeLabel: string;
+  readStoryLabel: string;
+  readStoryOfLabel: string;
   onReadClick: () => void;
   onTitleClick: () => void;
 }) => (
-  <div className="chapter-card p-8 lg:p-10">
-    <div className="flex items-center gap-3 mb-6">
+  <div className="chapter-card-flow">
+    <div className="flex items-center gap-2 md:gap-3 mb-3">
       <span className="chapter-badge">{badge}</span>
       {phase && (
-        <span className="inline-block px-3 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider bg-[#D6A23A]/10 text-[#D6A23A] border border-[#D6A23A]/20">
+        <span className="inline-block px-2 md:px-3 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider bg-[#D6A23A]/10 text-[#D6A23A] border border-[#D6A23A]/20">
           {phase}
         </span>
       )}
+      {readingTime && (
+        <span className="text-xs text-[#8B7355] ml-auto">{readingTime} {readingTimeLabel}</span>
+      )}
     </div>
     <h2
-      className="text-3xl lg:text-4xl xl:text-5xl mb-3 text-[#14181F] cursor-pointer hover:text-[#D6A23A] transition-colors"
+      className="text-xl md:text-2xl lg:text-3xl mb-2 text-[#2C1810] cursor-pointer hover:text-[#D6A23A] transition-colors leading-tight"
       onClick={onTitleClick}
       role="link"
       tabIndex={0}
@@ -59,18 +61,15 @@ const ChapterCard = ({
     >
       {title}
     </h2>
-    {readingTime && (
-      <p className="text-xs text-[#6B6F78] mb-4">{readingTime} min read</p>
-    )}
-    <p className="text-base lg:text-lg leading-relaxed text-[#14181F]/80 mb-8 max-w-xl">
+    <p className="text-sm md:text-base leading-relaxed text-[#2C1810]/70 mb-4">
       {story}
     </p>
     <button
       onClick={onReadClick}
-      className="text-link text-sm font-medium group"
-      aria-label={`Read the story of ${title}`}
+      className="inline-flex items-center gap-2 text-sm font-medium text-[#D6A23A] hover:text-[#B8861B] transition-colors group"
+      aria-label={`${readStoryOfLabel} ${title}`}
     >
-      Read the story
+      {readStoryLabel}
       <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
     </button>
   </div>
@@ -78,28 +77,56 @@ const ChapterCard = ({
 
 function App() {
   const mainRef = useRef<HTMLDivElement>(null);
-  const heroCardRef = useRef<HTMLDivElement>(null);
-  const heroBgRef = useRef<HTMLDivElement>(null);
-  // (triggers managed by gsap.context — no manual tracking needed)
+  const heroRef = useRef<HTMLDivElement>(null);
+  const lenisRef = useRef<Lenis | null>(null);
+  const { lang, setLang, t } = useLanguage();
 
-  // State
+  // Screen state: 'language' | 'home' | 'geeta'
+  const [currentScreen, setCurrentScreen] = useState<'language' | 'home' | 'geeta'>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('geeta-lang');
+      if (saved === 'en' || saved === 'hi') return 'home';
+    }
+    return 'language';
+  });
+
+  // All hooks must be declared before any conditional returns
   const [activeChapterId, setActiveChapterId] = useState<number | null>(null);
   const [showChaptersGrid, setShowChaptersGrid] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [currentScrollChapter, setCurrentScrollChapter] = useState(0);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(CHAPTERS_PER_BATCH);
-
-  const visibleChapters = chapters.slice(0, visibleCount);
-  const hasMoreChapters = visibleCount < chapters.length;
-
-  // Continue reading from localStorage
   const [lastReadChapter, setLastReadChapter] = useState<number | null>(() => {
     const saved = localStorage.getItem('geeta-last-read');
     return saved ? parseInt(saved, 10) : null;
   });
 
-  const lenisRef = useRef<Lenis | null>(null);
+  const handleLanguageSelect = useCallback((l: Parameters<typeof setLang>[0]) => {
+    setLang(l);
+    setCurrentScreen('home');
+  }, [setLang]);
+
+  // Get chapters based on language
+  const activeChapters = lang === 'hi' ? chaptersHi : chapters;
+
+  // Phase config with translations
+  const PHASES = [
+    { name: t('phase.foundation'), range: [1, 6], description: t('phase.foundation.desc') },
+    { name: t('phase.devotion'), range: [7, 12], description: t('phase.devotion.desc') },
+    { name: t('phase.integration'), range: [13, 18], description: t('phase.integration.desc') },
+  ];
+
+  function getPhaseForChapter(id: number) {
+    return PHASES.find(p => id >= p.range[0] && id <= p.range[1]);
+  }
+
+  function isFirstOfPhase(chapterId: number) {
+    return PHASES.some(p => p.range[0] === chapterId);
+  }
+
+  const visibleChapters = activeChapters.slice(0, visibleCount);
+  const hasMoreChapters = visibleCount < activeChapters.length;
 
   // Initialize Lenis smooth scroll
   useEffect(() => {
@@ -113,7 +140,6 @@ function App() {
     });
     lenisRef.current = lenis;
 
-    // Sync Lenis with GSAP ticker for perfect frame alignment
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((time) => { lenis.raf(time * 1000); });
     gsap.ticker.lagSmoothing(0);
@@ -124,10 +150,10 @@ function App() {
     };
   }, []);
 
-  // Track scroll position for back-to-top and progress
+  // Track scroll position for back-to-top and chapter indicator
   useEffect(() => {
     const handleScroll = () => {
-      setShowBackToTop(window.scrollY > window.innerHeight);
+      setShowBackToTop(window.scrollY > window.innerHeight * 0.5);
 
       for (let i = visibleCount; i >= 1; i--) {
         const el = document.getElementById(`chapter-${i}`);
@@ -146,118 +172,55 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [visibleCount]);
 
-  // Hero entrance animation on load
+  // Hero entrance animation
   useEffect(() => {
-    if (prefersReduced) {
-      gsap.set(heroBgRef.current, { opacity: 1, scale: 1 });
-      gsap.set(heroCardRef.current, { x: 0, opacity: 1 });
-      return;
-    }
+    if (prefersReduced || !heroRef.current) return;
 
     const ctx = gsap.context(() => {
-      gsap.fromTo(heroBgRef.current,
-        { opacity: 0, scale: 1.05 },
-        { opacity: 1, scale: 1, duration: 1.2, ease: 'power2.out', force3D: true }
-      );
-      gsap.fromTo(heroCardRef.current,
-        { y: 40, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out', delay: 0.2, force3D: true }
+      gsap.fromTo(heroRef.current,
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out', delay: 0.1 }
       );
     });
 
     return () => ctx.revert();
   }, []);
 
-  // Scroll-driven animations — single timeline per section, scrub: true (1:1), no lag
+  // Simple fade-in for chapter cards on scroll
   useLayoutEffect(() => {
     if (prefersReduced) return;
 
     const ctx = gsap.context(() => {
-      // Hero: single pinned timeline
-      const heroTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: '#hero-section',
-          start: 'top top',
-          end: '+=100%',
-          pin: true,
-          scrub: true,
-          anticipatePin: 1,
-        }
-      });
-      heroTl
-        .to(heroCardRef.current, {
-          y: -60, opacity: 0, scale: 0.96,
-          ease: 'none', force3D: true,
-        }, 0)
-        .to(heroBgRef.current, {
-          scale: 1.08, opacity: 0.5,
-          ease: 'none', force3D: true,
-        }, 0);
-
-      // Chapter sections — single timeline per chapter
-      visibleChapters.forEach((chapter) => {
-        const sectionId = `#chapter-${chapter.id}`;
-        const card = document.querySelector(`${sectionId} .chapter-card`) as HTMLElement;
-        const bg = document.querySelector(`${sectionId} .bg-wrapper`) as HTMLElement;
-
-        if (!card || !bg) return;
-
-        // Promote to GPU layer
-        gsap.set(card, { force3D: true });
-        gsap.set(bg, { force3D: true });
-
-        // Background is ALWAYS fully opaque — no fade-in that exposes the section beneath
-        gsap.set(bg, { opacity: 1, scale: 1 });
-
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: sectionId,
-            start: 'top top',
-            end: '+=100%',
-            pin: true,
-            scrub: true,
-            anticipatePin: 1,
+      const cards = document.querySelectorAll('.chapter-card-flow');
+      cards.forEach((card) => {
+        gsap.fromTo(card,
+          { y: 30, opacity: 0 },
+          {
+            y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 85%',
+              toggleActions: 'play none none none',
+            }
           }
-        });
-
-        // Card: start visible, hold, then exit upward in last 30%
-        // Card starts at y:0 opacity:1 (already visible when section pins)
-        gsap.set(card, { y: 0, opacity: 1, scale: 1 });
-
-        // 0 → 0.7: Card is fully visible (user reads)
-        // 0.7 → 1.0: Card fades up and out
-        tl.to(card,
-          { y: -50, opacity: 0, ease: 'power2.in', duration: 0.3 },
-          0.7
-        );
-
-        // Background: subtle Ken Burns zoom over the full timeline, stays fully opaque
-        tl.fromTo(bg,
-          { scale: 1.02 },
-          { scale: 1, ease: 'none', duration: 1 },
-          0
         );
       });
 
-      // Closing section reveal
+      // Closing section
       gsap.fromTo('#closing-content',
-        { y: 50, opacity: 0 },
+        { y: 30, opacity: 0 },
         {
-          y: 0, opacity: 1, ease: 'power2.out', force3D: true,
+          y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
           scrollTrigger: {
             trigger: '#closing-section',
             start: 'top 80%',
-            end: 'top 35%',
-            scrub: true,
+            toggleActions: 'play none none none',
           }
         }
       );
     }, mainRef);
 
-    return () => {
-      ctx.revert();
-      ScrollTrigger.refresh();
-    };
+    return () => ctx.revert();
   }, [visibleCount]);
 
   const openReader = useCallback((chapterId: number) => {
@@ -274,13 +237,13 @@ function App() {
   }, []);
 
   const goToNextChapter = useCallback(() => {
-    if (activeChapterId && activeChapterId < chapters.length) {
+    if (activeChapterId && activeChapterId < activeChapters.length) {
       const next = activeChapterId + 1;
       setActiveChapterId(next);
       setLastReadChapter(next);
       localStorage.setItem('geeta-last-read', String(next));
     }
-  }, [activeChapterId]);
+  }, [activeChapterId, activeChapters.length]);
 
   const openChaptersGrid = useCallback(() => {
     setShowChaptersGrid(true);
@@ -306,120 +269,129 @@ function App() {
     setTimeout(() => setContactSubmitted(false), 3000);
   }, []);
 
-  // Group chapters by phase for rendering phase dividers
-  const isFirstOfPhase = (chapterId: number) => {
-    return PHASES.some(p => p.range[0] === chapterId);
-  };
+  // --- Conditional screen renders (after all hooks) ---
+  if (currentScreen === 'language') {
+    return <LanguageSelector onSelect={handleLanguageSelect} />;
+  }
+
+  if (currentScreen === 'home') {
+    return (
+      <HomeScreen
+        onSelectTeaching={(id) => {
+          if (id === 'geeta') setCurrentScreen('geeta');
+        }}
+      />
+    );
+  }
 
   return (
-    <div ref={mainRef} className="relative">
+    <div ref={mainRef} className="relative saffron-bg min-h-screen">
       {/* Skip to content link */}
       <a href="#chapters" className="sr-only sr-only-focusable">
-        Skip to chapters
+        {t('hero.skipToChapters')}
       </a>
 
       {/* Grain overlay */}
       <div className="grain-overlay" />
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 px-6 lg:px-10 py-5 flex justify-between items-center bg-gradient-to-b from-[#F4EFE6]/95 via-[#F4EFE6]/80 to-transparent shadow-sm">
-        <div className="text-sm font-medium tracking-wide text-[#14181F]">
-          Geeta In Modern World
+      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 lg:px-10 py-4 flex justify-between items-center nav-saffron">
+        <div
+          className="text-sm font-medium tracking-wide text-[#2C1810] cursor-pointer hover:text-[#D6A23A] transition-colors"
+          onClick={() => setCurrentScreen('home')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') setCurrentScreen('home'); }}
+          aria-label="Back to home"
+        >
+          {t('nav.title')}
         </div>
-        <div className="hidden md:flex items-center gap-8">
+        <div className="flex items-center gap-4 md:gap-8">
           {currentScrollChapter > 0 && (
-            <span className="text-xs text-[#D6A23A] font-medium">
-              Chapter {currentScrollChapter} of {chapters.length}
+            <span className="text-xs text-[#D6A23A] font-medium hidden md:inline">
+              {lang === 'hi'
+                ? `अध्याय ${currentScrollChapter} ${t('nav.chapterOf')} ${activeChapters.length}`
+                : `Chapter ${currentScrollChapter} ${t('nav.chapterOf')} ${activeChapters.length}`}
             </span>
           )}
-          <button onClick={openChaptersGrid} className="text-sm text-[#14181F]/70 hover:text-[#14181F] transition-colors">
-            Chapters
+          <button onClick={openChaptersGrid} className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">
+            {t('nav.chapters')}
           </button>
-          <a href="#about" className="text-sm text-[#14181F]/70 hover:text-[#14181F] transition-colors">About</a>
-          <a href="#contact" className="text-sm text-[#14181F]/70 hover:text-[#14181F] transition-colors">Contact</a>
+          <a href="#about" className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">{t('nav.about')}</a>
+          <a href="#contact" className="text-sm text-[#2C1810]/70 hover:text-[#2C1810] transition-colors hidden md:inline">{t('nav.contact')}</a>
+          {/* Language toggle */}
+          <button
+            onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-[#D6A23A]/30 text-[#D6A23A] hover:bg-[#D6A23A] hover:text-white transition-colors"
+            aria-label={`Switch to ${lang === 'en' ? 'Hindi' : 'English'}`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {t('lang.toggle')}
+          </button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section id="hero-section" className="pinned-section" style={{ zIndex: 10 }}>
-        <div ref={heroBgRef} className="absolute inset-0">
-          <img src="/cover_bg.jpg" alt="" className="bg-image" />
-          <div className="vignette-overlay" />
-        </div>
+      <section className="pt-24 pb-10 md:pt-32 md:pb-16 px-4 md:px-6 lg:px-[6vw]">
+        <div ref={heroRef} className="max-w-3xl mx-auto text-center">
+          {/* Decorative saffron mandala accent */}
+          <div className="saffron-mandala mx-auto mb-6" />
 
-        <div
-          ref={heroCardRef}
-          className="absolute left-[6vw] top-1/2 -translate-y-1/2 w-[42vw] min-w-[320px] max-w-[640px] z-10"
-        >
-          <div className="chapter-card p-8 lg:p-10">
-            <span className="eyebrow mb-4 block">A Modern Retelling</span>
-            <h1 className="text-4xl lg:text-5xl xl:text-6xl mb-4 text-[#14181F]">
-              Geeta In<br />Modern World
-            </h1>
-            <p className="text-base lg:text-lg text-[#6B6F78] mb-4">
-              Eighteen chapters. Eighteen lives. One timeless conversation.
-            </p>
-            <p className="text-sm text-[#6B6F78]/70 mb-8 italic">
-              Life is a battlefield — of choices, pressures, and identity. These stories explore ancient wisdom through the lens of modern struggles.
-            </p>
+          <span className="eyebrow mb-3 block text-[#D6A23A]">{t('hero.eyebrow')}</span>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl mb-4 text-[#2C1810]">
+            {t('hero.title1')}<br />{t('hero.title2')}
+          </h1>
+          <p className="text-base md:text-lg text-[#8B7355] mb-3 max-w-lg mx-auto">
+            {t('hero.subtitle')}
+          </p>
+          <p className="text-sm text-[#8B7355]/70 mb-8 italic max-w-md mx-auto hidden md:block">
+            {t('hero.description')}
+          </p>
 
-            <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex flex-wrap justify-center gap-3 mb-4">
+            <button
+              onClick={() => {
+                const chaptersSection = document.getElementById('chapters');
+                chaptersSection?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="btn-saffron"
+            >
+              {t('hero.startReading')}
+            </button>
+            {lastReadChapter && (
               <button
-                onClick={() => {
-                  const chaptersSection = document.getElementById('chapters');
-                  chaptersSection?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="btn-primary"
+                onClick={() => openReader(lastReadChapter)}
+                className="px-6 py-3 rounded-full font-medium transition-all duration-300 border border-[#D6A23A]/40 text-[#D6A23A] hover:bg-[#D6A23A] hover:text-white"
               >
-                Start Reading
+                {t('hero.continueChapter')} {lastReadChapter}
               </button>
-              {lastReadChapter && (
-                <button
-                  onClick={() => openReader(lastReadChapter)}
-                  className="px-6 py-3 rounded-full font-medium transition-all duration-300 border border-[#D6A23A]/40 text-[#D6A23A] hover:bg-[#D6A23A] hover:text-[#0B0F17]"
-                >
-                  Continue Chapter {lastReadChapter}
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-[#6B6F78]">
-              Free digital edition · No signup required
-            </p>
+            )}
           </div>
+          <p className="text-xs text-[#8B7355]/60">
+            {t('hero.freeEdition')}
+          </p>
         </div>
       </section>
 
-      {/* Chapter Sections */}
-      <main id="chapters">
-        {visibleChapters.map((chapter, index) => {
-          const phase = getPhaseForChapter(chapter.id);
-          return (
-            <section
-              key={chapter.id}
-              id={`chapter-${chapter.id}`}
-              className="pinned-section"
-              style={{ zIndex: 20 + index }}
-              aria-label={`${chapter.badge}: ${chapter.title}`}
-            >
-              <div className="bg-wrapper absolute inset-0">
-                <img
-                  src={chapter.bgImage}
-                  alt=""
-                  className="bg-image"
-                  style={{
-                    filter: 'saturate(0.85) contrast(1.05)',
-                  }}
-                />
-                <div className="vignette-overlay" />
-              </div>
+      {/* Decorative divider */}
+      <div className="saffron-divider" />
 
-              <div className="absolute left-[6vw] top-1/2 -translate-y-1/2 w-[44vw] max-w-[680px] z-10">
-                {/* Phase divider for first chapter of each phase */}
+      {/* Chapter List */}
+      <main id="chapters" className="px-4 md:px-6 lg:px-[6vw] py-8 md:py-12">
+        <div className="max-w-3xl mx-auto">
+          {visibleChapters.map((chapter) => {
+            const phase = getPhaseForChapter(chapter.id);
+            return (
+              <div key={chapter.id} id={`chapter-${chapter.id}`}>
+                {/* Phase divider */}
                 {isFirstOfPhase(chapter.id) && phase && (
-                  <div className="mb-4 px-1">
-                    <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A]/80 font-medium">
-                      Phase {PHASES.indexOf(phase) + 1}: {phase.name}
+                  <div className="phase-divider">
+                    <span className="phase-label">
+                      {lang === 'hi'
+                        ? `चरण ${PHASES.indexOf(phase) + 1}: ${phase.name}`
+                        : `Phase ${PHASES.indexOf(phase) + 1}: ${phase.name}`}
                     </span>
+                    <p className="text-xs text-[#8B7355]/60 mt-1">{phase.description}</p>
                   </div>
                 )}
                 <ChapterCard
@@ -428,82 +400,67 @@ function App() {
                   story={chapter.story.plot}
                   phase={phase?.name}
                   readingTime={chapter.readingTimeMinutes}
+                  readingTimeLabel={t('card.minRead')}
+                  readStoryLabel={t('card.readStory')}
+                  readStoryOfLabel={t('card.readStoryOf')}
                   onReadClick={() => openReader(chapter.id)}
                   onTitleClick={() => openReader(chapter.id)}
                 />
               </div>
-            </section>
-          );
-        })}
-      </main>
+            );
+          })}
+        </div>
 
-      {/* Load More Chapters */}
-      {hasMoreChapters && (
-        <section
-          className="relative flex items-center justify-center min-h-screen"
-          style={{ backgroundColor: '#0B0F17', zIndex: 20 + visibleCount }}
-        >
-          <div className="text-center">
-            <p className="text-sm uppercase tracking-[0.15em] text-[#D6A23A]/80 font-medium mb-3">
-              {visibleCount} of {chapters.length} chapters
-            </p>
-            <h2 className="text-3xl lg:text-4xl text-[#F4EFE6] mb-6">
-              Continue the Journey
-            </h2>
-            <p className="text-base text-[#F4EFE6]/50 mb-10 max-w-md mx-auto">
-              {chapters.length - visibleCount} more chapters await. Load the next batch to keep scrolling.
+        {/* Load More */}
+        {hasMoreChapters && (
+          <div className="text-center py-8">
+            <p className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] font-medium mb-3">
+              {visibleCount} {t('loadMore.of')} {activeChapters.length} {t('loadMore.chapters')}
             </p>
             <button
-              onClick={() => setVisibleCount(prev => Math.min(prev + CHAPTERS_PER_BATCH, chapters.length))}
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-medium transition-all duration-300 text-[#0B0F17]"
-              style={{ backgroundColor: '#D6A23A' }}
+              onClick={() => setVisibleCount(prev => Math.min(prev + CHAPTERS_PER_BATCH, activeChapters.length))}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 border border-[#D6A23A]/30 text-[#D6A23A] hover:bg-[#D6A23A] hover:text-white"
             >
-              <ChevronDown className="w-5 h-5" />
-              Load More Chapters
+              <ChevronDown className="w-4 h-4" />
+              {t('loadMore.button')}
             </button>
           </div>
-        </section>
-      )}
+        )}
+      </main>
 
       {/* About & Contact Section */}
       <section
         id="closing-section"
-        className="relative min-h-screen py-20 lg:py-32"
-        style={{ backgroundColor: '#0B0F17', zIndex: 100 }}
+        className="relative py-16 lg:py-24"
+        style={{ backgroundColor: '#2C1810' }}
       >
-        <div className="vignette-overlay" />
-
-        <div id="closing-content" className="relative z-10 px-6 lg:px-[6vw]">
-          <div className="max-w-7xl mx-auto">
+        <div id="closing-content" className="relative z-10 px-4 md:px-6 lg:px-[6vw]">
+          <div className="max-w-5xl mx-auto">
 
             {/* About This Project */}
-            <div id="about" className="mb-20 max-w-3xl">
-              <span className="eyebrow mb-4 block text-[#D6A23A]">About This Project</span>
+            <div id="about" className="mb-16 max-w-3xl">
+              <span className="eyebrow mb-4 block text-[#D6A23A]">{t('about.eyebrow')}</span>
               <h2 className="text-3xl lg:text-4xl mb-6 text-[#F4EFE6]">
-                Why a Modern Retelling?
+                {t('about.heading')}
               </h2>
               <div className="space-y-4 text-base text-[#F4EFE6]/70 leading-relaxed">
+                <p>{t('about.p1')}</p>
+                <p>{t('about.p2')}</p>
                 <p>
-                  The Bhagavad Gita is not a relic — it's a living conversation about duty, identity, and purpose. But its language can feel distant to a generation navigating social media anxiety, career burnout, and existential pressure.
-                </p>
-                <p>
-                  This project reimagines each of the 18 chapters through modern stories — a marketing exec facing an ethical crisis, a social media influencer questioning identity, a surgeon confronting mortality. Each story is paired with the original Sanskrit shlokas and their translations, bridging the ancient and the contemporary.
-                </p>
-                <p>
-                  The journey follows three phases: <strong className="text-[#D6A23A]">Foundation</strong> (understanding duty and the self), <strong className="text-[#D6A23A]">Devotion</strong> (divine knowledge and surrender), and <strong className="text-[#D6A23A]">Integration</strong> (wisdom, discernment, and liberation). Read one chapter a week, or follow your curiosity.
+                  {t('about.p3text')} <strong className="text-[#D6A23A]">{t('about.p3foundation')}</strong> {t('about.p3suffix')} <strong className="text-[#D6A23A]">{t('about.p3devotion')}</strong> {t('about.p3suffix2')} <strong className="text-[#D6A23A]">{t('about.p3integration')}</strong> {t('about.p3suffix3')}
                 </p>
               </div>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
               {/* Left column - Closing message */}
-              <div className="pt-10">
-                <span className="eyebrow mb-4 block text-[#6B6F78]">The Journey Continues</span>
-                <h2 className="text-4xl lg:text-5xl xl:text-6xl mb-6 text-[#F4EFE6]">
-                  The conversation continues.
+              <div>
+                <span className="eyebrow mb-4 block text-[#8B7355]">{t('closing.eyebrow')}</span>
+                <h2 className="text-3xl lg:text-4xl xl:text-5xl mb-6 text-[#F4EFE6]">
+                  {t('closing.heading')}
                 </h2>
                 <p className="text-lg text-[#F4EFE6]/70 mb-10 max-w-md">
-                  If this resonated, share it. If you want more, explore the full edition. If you have a question, ask.
+                  {t('closing.text')}
                 </p>
 
                 <div className="flex flex-wrap gap-4">
@@ -511,71 +468,71 @@ function App() {
                     onClick={openChaptersGrid}
                     className="flex items-center gap-2 px-6 py-3 rounded-full border border-[#F4EFE6]/20 text-[#F4EFE6] hover:bg-[#F4EFE6]/10 transition-colors"
                   >
-                    <BookOpen className="w-4 h-4" /> Explore All 18 Chapters
+                    <BookOpen className="w-4 h-4" /> {t('closing.exploreAll')}
                   </button>
                   <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-[#F4EFE6]/20 text-[#F4EFE6] hover:bg-[#F4EFE6]/10 transition-colors">
-                    <Heart className="w-4 h-4" /> Share
+                    <Heart className="w-4 h-4" /> {t('closing.share')}
                   </button>
                 </div>
               </div>
 
               {/* Right column - Contact form */}
-              <div className="lg:pt-10" id="contact">
+              <div id="contact">
                 <div
-                  className="p-8 rounded-[22px]"
+                  className="p-6 md:p-8 rounded-[18px]"
                   style={{
                     background: 'rgba(244, 239, 230, 0.06)',
                     border: '1px solid rgba(244, 239, 230, 0.12)'
                   }}
                 >
-                  <h3 className="text-xl font-medium mb-6 text-[#F4EFE6]">Get in Touch</h3>
+                  <h3 className="text-xl font-medium mb-6 text-[#F4EFE6]">{t('contact.heading')}</h3>
 
                   {contactSubmitted ? (
                     <div className="text-center py-10">
-                      <p className="text-lg text-[#D6A23A] font-medium mb-2">Thank you!</p>
-                      <p className="text-sm text-[#F4EFE6]/60">Your message has been received. We'll get back to you soon.</p>
+                      <p className="text-lg text-[#D6A23A] font-medium mb-2">{t('contact.thankYou')}</p>
+                      <p className="text-sm text-[#F4EFE6]/60">{t('contact.thankYouText')}</p>
                     </div>
                   ) : (
                     <form className="space-y-5" onSubmit={handleContactSubmit}>
                       <div>
-                        <label htmlFor="contact-name" className="block text-sm text-[#F4EFE6]/60 mb-2">Name</label>
+                        <label htmlFor="contact-name" className="block text-sm text-[#F4EFE6]/60 mb-2">{t('contact.nameLabel')}</label>
                         <input
                           id="contact-name"
                           type="text"
                           required
                           className="w-full px-4 py-3 rounded-xl bg-[#F4EFE6]/5 border border-[#F4EFE6]/10 text-[#F4EFE6] placeholder:text-[#F4EFE6]/30 focus:outline-none focus:border-[#D6A23A]/50"
-                          placeholder="Your name"
+                          placeholder={t('contact.namePlaceholder')}
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="contact-email" className="block text-sm text-[#F4EFE6]/60 mb-2">Email</label>
+                        <label htmlFor="contact-email" className="block text-sm text-[#F4EFE6]/60 mb-2">{t('contact.emailLabel')}</label>
                         <input
                           id="contact-email"
                           type="email"
                           required
                           className="w-full px-4 py-3 rounded-xl bg-[#F4EFE6]/5 border border-[#F4EFE6]/10 text-[#F4EFE6] placeholder:text-[#F4EFE6]/30 focus:outline-none focus:border-[#D6A23A]/50"
-                          placeholder="your@email.com"
+                          placeholder={t('contact.emailPlaceholder')}
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="contact-message" className="block text-sm text-[#F4EFE6]/60 mb-2">Message</label>
+                        <label htmlFor="contact-message" className="block text-sm text-[#F4EFE6]/60 mb-2">{t('contact.messageLabel')}</label>
                         <textarea
                           id="contact-message"
                           rows={4}
                           required
                           className="w-full px-4 py-3 rounded-xl bg-[#F4EFE6]/5 border border-[#F4EFE6]/10 text-[#F4EFE6] placeholder:text-[#F4EFE6]/30 focus:outline-none focus:border-[#D6A23A]/50 resize-none"
-                          placeholder="Your message..."
+                          placeholder={t('contact.messagePlaceholder')}
                         />
                       </div>
 
                       <button
                         type="submit"
                         className="w-full py-3 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2"
-                        style={{ backgroundColor: '#D6A23A', color: '#0B0F17' }}
+                        style={{ backgroundColor: '#D6A23A', color: '#2C1810' }}
                       >
-                        <MessageCircle className="w-4 h-4" /> Send Message
+                        <MessageCircle className="w-4 h-4" /> {t('contact.send')}
                       </button>
                     </form>
                   )}
@@ -584,12 +541,12 @@ function App() {
             </div>
 
             {/* Footer */}
-            <footer className="mt-20 pt-8 border-t border-[#F4EFE6]/10 text-center">
+            <footer className="mt-16 pt-8 border-t border-[#F4EFE6]/10 text-center">
               <p className="text-sm text-[#F4EFE6]/40 mb-2">
-                © Geeta In Modern World. Built for contemplation, not conversion.
+                {t('footer.copyright')}
               </p>
               <p className="text-xs text-[#F4EFE6]/25">
-                This is a creative interpretation of the Bhagavad Gita for educational and inspirational purposes. For scholarly study, please consult traditional commentaries and qualified teachers.
+                {t('footer.disclaimer')}
               </p>
             </footer>
           </div>
@@ -600,8 +557,8 @@ function App() {
       {showBackToTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-[90] p-3 rounded-full bg-[#0B0F17] text-[#F4EFE6] shadow-lg hover:bg-[#D6A23A] hover:text-[#0B0F17] transition-all duration-300"
-          aria-label="Back to top"
+          className="fixed bottom-6 right-6 z-[90] p-3 rounded-full bg-[#2C1810] text-[#F4EFE6] shadow-lg hover:bg-[#D6A23A] hover:text-[#2C1810] transition-all duration-300"
+          aria-label={t('backToTop')}
         >
           <ArrowUp className="w-5 h-5" />
         </button>
@@ -613,7 +570,7 @@ function App() {
           chapterId={activeChapterId}
           onClose={closeReader}
           onNextChapter={goToNextChapter}
-          hasNextChapter={activeChapterId < chapters.length}
+          hasNextChapter={activeChapterId < activeChapters.length}
         />
       )}
 

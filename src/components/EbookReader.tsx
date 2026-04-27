@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, BookOpen, Maximize2, Minimize2, ArrowRight, Lightbulb, HelpCircle, Dumbbell } from 'lucide-react';
 import { chapters } from '../data/chapters';
+import { chaptersHi } from '../data/chapters-hi';
+import { useLanguage } from '../lib/language';
 
 interface EbookReaderProps {
   chapterId: number;
@@ -9,15 +11,24 @@ interface EbookReaderProps {
   hasNextChapter?: boolean;
 }
 
-const PHASES = [
+const PHASES_EN = [
   { name: 'Foundation', range: [1, 6] },
   { name: 'Devotion', range: [7, 12] },
   { name: 'Integration', range: [13, 18] },
 ];
 
-function getPhaseLabel(id: number) {
+const PHASES_HI = [
+  { name: 'आधार', range: [1, 6] },
+  { name: 'भक्ति', range: [7, 12] },
+  { name: 'समन्वय', range: [13, 18] },
+];
+
+function getPhaseLabel(id: number, lang: string) {
+  const PHASES = lang === 'hi' ? PHASES_HI : PHASES_EN;
   const p = PHASES.find(p => id >= p.range[0] && id <= p.range[1]);
-  return p ? `Phase ${PHASES.indexOf(p) + 1}: ${p.name}` : '';
+  if (!p) return '';
+  const prefix = lang === 'hi' ? 'चरण' : 'Phase';
+  return `${prefix} ${PHASES.indexOf(p) + 1}: ${p.name}`;
 }
 
 // Glossary tooltip component
@@ -53,8 +64,10 @@ export default function EbookReader({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readerRef = useRef<HTMLDivElement>(null);
+  const { lang, t } = useLanguage();
 
-  const chapter = chapters.find(c => c.id === chapterId);
+  const activeChapters = lang === 'hi' ? chaptersHi : chapters;
+  const chapter = activeChapters.find(c => c.id === chapterId);
 
   if (!chapter) return null;
 
@@ -184,7 +197,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#D6A23A]/60 mb-2">
-              {getPhaseLabel(chapter.id)}
+              {getPhaseLabel(chapter.id, lang)}
             </span>
             <span className="text-sm uppercase tracking-[0.2em] text-[#D6A23A] mb-4">
               {chapter.badge}
@@ -197,10 +210,10 @@ export default function EbookReader({
             </p>
             <div className="w-16 h-px bg-[#D6A23A] mb-8" />
             <p className="text-sm text-[#6B6F78] max-w-md">
-              A modern retelling of the Bhagavad Gita's timeless wisdom
+              {t('reader.modernRetelling')}
             </p>
             {chapter.readingTimeMinutes && (
-              <p className="text-xs text-[#6B6F78]/60 mt-4">{chapter.readingTimeMinutes} min read</p>
+              <p className="text-xs text-[#6B6F78]/60 mt-4">{chapter.readingTimeMinutes} {t('card.minRead')}</p>
             )}
           </div>
         );
@@ -209,13 +222,13 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Story
+              {t('reader.theStory')}
             </span>
             <h2 className="text-2xl md:text-3xl font-serif text-[#14181F] mb-6">
-              Meet {chapter.story.character.split(',')[0]}
+              {t('reader.meet')} {chapter.story.character.split(',')[0]}
             </h2>
             <p className="text-lg text-[#14181F]/80 leading-relaxed mb-6">
-              <span className="font-medium">Setting:</span> {chapter.story.setting}
+              <span className="font-medium">{t('reader.setting')}</span> {chapter.story.setting}
             </p>
             <p className="text-base text-[#6B6F78] leading-relaxed">
               {chapter.story.character}
@@ -227,7 +240,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Journey
+              {t('reader.theJourney')}
             </span>
             <p className="text-lg text-[#14181F]/90 leading-relaxed">
               {chapter.story.plot}
@@ -239,7 +252,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Crossroads
+              {t('reader.theCrossroads')}
             </span>
             <div className="border-l-2 border-[#D6A23A] pl-6">
               <p className="text-xl md:text-2xl font-serif text-[#14181F] leading-relaxed italic">
@@ -253,14 +266,14 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Resolution
+              {t('reader.theResolution')}
             </span>
             <p className="text-lg text-[#14181F]/90 leading-relaxed mb-6">
               {chapter.story.resolution}
             </p>
             <div className="mt-4 p-4 rounded-lg bg-[#D6A23A]/5 border border-[#D6A23A]/10">
               <p className="text-sm text-[#6B6F78] italic">
-                Like a wise mentor's inner voice: sometimes the hardest choice is the one that aligns with who you truly are.
+                {t('reader.resolutionQuote')}
               </p>
             </div>
           </div>
@@ -270,7 +283,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Wisdom
+              {t('reader.theWisdom')}
             </span>
             <div className="bg-[#F4EFE6] rounded-xl p-8 border border-[#D6A23A]/20">
               <p className="text-xl font-serif text-[#14181F] leading-relaxed">
@@ -286,7 +299,7 @@ export default function EbookReader({
             <div className="flex items-center gap-2 mb-6">
               <Lightbulb className="w-4 h-4 text-[#D6A23A]" />
               <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A]">
-                Practical Takeaway
+                {t('reader.practicalTakeaway')}
               </span>
             </div>
             <div className="bg-[#0B0F17] rounded-xl p-8">
@@ -295,7 +308,7 @@ export default function EbookReader({
               </p>
             </div>
             <p className="text-sm text-[#6B6F78] mt-4 text-center italic">
-              Something you can apply today.
+              {t('reader.applyToday')}
             </p>
           </div>
         );
@@ -304,21 +317,21 @@ export default function EbookReader({
         return (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              The Sacred Verse
+              {t('reader.theSacredVerse')}
             </span>
             <h2 className="text-3xl md:text-4xl font-serif text-[#14181F] mb-4">
-              Original Shlokas
+              {t('reader.originalShlokas')}
             </h2>
             <p className="text-base text-[#6B6F78] max-w-md mb-8">
-              The timeless Sanskrit verses with their English translations
+              {t('reader.shlokasDescription')}
             </p>
             <div className="flex items-center gap-2 text-sm text-[#D6A23A]">
               <BookOpen className="w-4 h-4" />
-              <span>{chapter.shlokas.length} verses to explore</span>
+              <span>{chapter.shlokas.length} {t('reader.versesToExplore')}</span>
             </div>
             {chapter.glossaryTerms && chapter.glossaryTerms.length > 0 && (
               <div className="mt-8">
-                <p className="text-xs text-[#6B6F78] mb-3">Key terms in this chapter (hover for definition):</p>
+                <p className="text-xs text-[#6B6F78] mb-3">{t('reader.keyTerms')}</p>
                 <GlossaryInline terms={chapter.glossaryTerms} />
               </div>
             )}
@@ -330,7 +343,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              Bhagavad Gita {shloka.number}
+              {lang === 'hi' ? `भगवद्गीता ${shloka.number}` : `Bhagavad Gita ${shloka.number}`}
             </span>
             <div className="mb-8">
               <p className="text-xl md:text-2xl text-[#14181F] leading-relaxed font-serif whitespace-pre-line">
@@ -339,7 +352,7 @@ export default function EbookReader({
             </div>
             <div className="border-t border-[#D6A23A]/20 pt-6">
               <p className="text-sm uppercase tracking-wider text-[#6B6F78] mb-3">
-                Translation
+                {t('reader.translation')}
               </p>
               <p className="text-lg text-[#14181F]/90 leading-relaxed">
                 {shloka.translation}
@@ -353,7 +366,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              Chapter Summary
+              {t('reader.chapterSummary')}
             </span>
             <p className="text-lg text-[#14181F]/90 leading-relaxed">
               {chapter.summary}
@@ -365,7 +378,7 @@ export default function EbookReader({
         return (
           <div className="flex flex-col justify-center h-full px-8 md:px-16">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              Key Teaching
+              {t('reader.keyTeaching')}
             </span>
             <div className="bg-[#0B0F17] rounded-xl p-8">
               <p className="text-xl font-serif text-[#F4EFE6] leading-relaxed">
@@ -373,7 +386,7 @@ export default function EbookReader({
               </p>
             </div>
             <p className="text-sm text-[#6B6F78] mt-6 text-center">
-              Modern Context: {chapter.modernContext}
+              {t('reader.modernContext')} {chapter.modernContext}
             </p>
           </div>
         );
@@ -385,7 +398,7 @@ export default function EbookReader({
             <div className="flex items-center gap-2 mb-6">
               <HelpCircle className="w-4 h-4 text-[#D6A23A]" />
               <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A]">
-                Reflection Questions
+                {t('reader.reflectionQuestions')}
               </span>
             </div>
             <div className="space-y-6">
@@ -401,7 +414,7 @@ export default function EbookReader({
               ))}
             </div>
             <p className="text-sm text-[#6B6F78] mt-8 text-center italic">
-              Sit with these questions. There are no wrong answers.
+              {t('reader.reflectionHint')}
             </p>
           </div>
         );
@@ -413,7 +426,7 @@ export default function EbookReader({
             <div className="flex items-center gap-2 mb-6">
               <Dumbbell className="w-4 h-4 text-[#D6A23A]" />
               <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A]">
-                Try This
+                {t('reader.tryThis')}
               </span>
             </div>
             <div className="bg-[#F4EFE6] rounded-xl p-8 border-2 border-dashed border-[#D6A23A]/30">
@@ -422,7 +435,7 @@ export default function EbookReader({
               </p>
             </div>
             <p className="text-sm text-[#6B6F78] mt-4 text-center italic">
-              Wisdom is only real when practiced.
+              {t('reader.wisdomPracticed')}
             </p>
           </div>
         );
@@ -431,14 +444,14 @@ export default function EbookReader({
         return (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
             <span className="text-xs uppercase tracking-[0.15em] text-[#D6A23A] mb-6">
-              Chapter Complete
+              {t('reader.chapterComplete')}
             </span>
             <h2 className="text-3xl md:text-4xl font-serif text-[#14181F] mb-4">
               {chapter.title}
             </h2>
             <div className="w-16 h-px bg-[#D6A23A] mb-8" />
             <p className="text-base text-[#6B6F78] max-w-md mb-8">
-              You have completed this chapter. The journey of wisdom continues.
+              {t('reader.chapterCompleteText')}
             </p>
 
             {hasNextChapter && onNextChapter ? (
@@ -446,14 +459,14 @@ export default function EbookReader({
                 onClick={onNextChapter}
                 className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#D6A23A] text-[#0B0F17] font-medium hover:bg-[#c4932f] transition-colors"
               >
-                Read Next Chapter <ArrowRight className="w-4 h-4" />
+                {t('reader.readNextChapter')} <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
               <button
                 onClick={onClose}
                 className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#0B0F17] text-[#F4EFE6] font-medium hover:bg-[#D6A23A] hover:text-[#0B0F17] transition-colors"
               >
-                <X className="w-4 h-4" /> Close Reader
+                <X className="w-4 h-4" /> {t('reader.closeReader')}
               </button>
             )}
           </div>
@@ -469,7 +482,7 @@ export default function EbookReader({
       ref={readerRef}
       className="fixed inset-0 z-[100] bg-[#F4EFE6]"
       role="dialog"
-      aria-label={`Reading ${chapter.title}`}
+      aria-label={`${t('reader.reading')} ${chapter.title}`}
       onClick={handleInteraction}
       onMouseMove={handleInteraction}
       onTouchStart={handleInteraction}
@@ -487,10 +500,10 @@ export default function EbookReader({
           <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#0B0F17] text-[#F4EFE6] text-sm font-medium hover:bg-[#D6A23A] hover:text-[#0B0F17] transition-colors"
-            aria-label="Close reader"
+            aria-label={t('reader.closeReader')}
           >
             <X className="w-4 h-4" />
-            Close
+            {t('reader.close')}
           </button>
           <span className="text-sm text-[#6B6F78] hidden md:inline">
             {chapter.title}
@@ -501,7 +514,7 @@ export default function EbookReader({
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-full bg-[#14181F]/5 text-[#14181F] hover:bg-[#14181F]/10 transition-colors"
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            aria-label={isFullscreen ? t('reader.exitFullscreen') : t('reader.enterFullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
           </button>
@@ -540,7 +553,7 @@ export default function EbookReader({
           <button
             onClick={prevPage}
             disabled={currentPage === 0}
-            aria-label="Previous page"
+            aria-label={t('reader.previousPage')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               currentPage === 0
                 ? 'opacity-30 cursor-not-allowed text-[#6B6F78]'
@@ -548,7 +561,7 @@ export default function EbookReader({
             }`}
           >
             <ChevronLeft className="w-4 h-4" />
-            Previous
+            {t('reader.previous')}
           </button>
 
           <span className="text-sm text-[#6B6F78]">
@@ -558,23 +571,23 @@ export default function EbookReader({
           {isLastPage && hasNextChapter && onNextChapter ? (
             <button
               onClick={onNextChapter}
-              aria-label="Go to next chapter"
+              aria-label={t('reader.goToNextChapter')}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#D6A23A] text-[#0B0F17] text-sm font-medium hover:bg-[#c4932f] transition-colors"
             >
-              Next Chapter <ArrowRight className="w-4 h-4" />
+              {t('reader.nextChapter')} <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button
               onClick={nextPage}
               disabled={currentPage === totalPages - 1}
-              aria-label="Next page"
+              aria-label={t('reader.nextPage')}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 currentPage === totalPages - 1
                   ? 'opacity-30 cursor-not-allowed text-[#6B6F78]'
                   : 'bg-[#14181F]/5 text-[#14181F] hover:bg-[#14181F]/10'
               }`}
             >
-              Next <ChevronRight className="w-4 h-4" />
+              {t('reader.next')} <ChevronRight className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -584,7 +597,7 @@ export default function EbookReader({
       <button
         onClick={prevPage}
         disabled={currentPage === 0}
-        aria-label="Previous page"
+        aria-label={t('reader.previousPage')}
         className={`fixed left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-[#14181F]/5 text-[#14181F] hover:bg-[#14181F]/10 transition-all duration-300 ${
           showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
         } ${currentPage === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
@@ -595,7 +608,7 @@ export default function EbookReader({
       {isLastPage && hasNextChapter && onNextChapter ? (
         <button
           onClick={onNextChapter}
-          aria-label="Go to next chapter"
+          aria-label={t('reader.goToNextChapter')}
           className={`fixed right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-[#D6A23A] text-[#0B0F17] hover:bg-[#c4932f] transition-all duration-300 ${
             showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
@@ -606,7 +619,7 @@ export default function EbookReader({
         <button
           onClick={nextPage}
           disabled={currentPage === totalPages - 1}
-          aria-label="Next page"
+          aria-label={t('reader.nextPage')}
           className={`fixed right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-[#14181F]/5 text-[#14181F] hover:bg-[#14181F]/10 transition-all duration-300 ${
             showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
           } ${currentPage === totalPages - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
